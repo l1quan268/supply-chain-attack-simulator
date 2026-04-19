@@ -1,0 +1,17 @@
+# Environments
+myenv/
+venv/
+env/
+
+# Python caching
+__pycache__/
+*.pyc
+
+# Build folders
+red_team/malicious_package/dist/
+red_team/malicious_package/build/
+red_team/malicious_package/*.egg-info/
+
+# OS files
+.DS_Store
+Thumbs.db
