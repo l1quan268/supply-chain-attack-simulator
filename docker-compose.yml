@@ -1,14 +1,27 @@
 services:
-  pypiserver:
+  # Mô phỏng registry NỘI BỘ công ty — có corp-auth-utils v1.0.0 (hợp lệ)
+  internal-registry:
     image: pypiserver/pypiserver:latest
-    container_name: s04-registry
+    container_name: s04-internal
     ports:
       - "8000:8080"
     volumes:
-      - ./dist:/data/packages
+      - ./dist/internal:/data/packages
     networks:
       s04_network:
         ipv4_address: 172.31.0.10
+
+  # Mô phỏng PyPI CÔNG KHAI — attacker publish corp-auth-utils v99.0.0 (độc hại)
+  public-registry:
+    image: pypiserver/pypiserver:latest
+    container_name: s04-public
+    ports:
+      - "9000:8080"
+    volumes:
+      - ./dist/public:/data/packages
+    networks:
+      s04_network:
+        ipv4_address: 172.31.0.11
 
   c2_server:
     build:

