@@ -2,8 +2,8 @@
 $logFile = "C:\S04Demo\detector_audit.log"
 Write-Host "--- S04 ADVANCED BEHAVIORAL DETECTOR IS RUNNING ---" -ForegroundColor Cyan
 
-# Whitelist: PyPI CDN (Fastly 151.101.x.x), localhost
-$WhitelistIPs = @("151.101.", "127.0.0.1", "::1")
+# Whitelist: PyPI CDN (Fastly), GitHub, Anaconda, localhost, Docker bridge
+$WhitelistIPs = @("151.101.", "140.82.", "185.199.", "104.16.", "127.0.0.1", "::1", "172.31.0.")
 $ReportedConnections = @()  # Chống spam cảnh báo trùng lặp
 $isSystemClear = $false
 

@@ -1,0 +1,32 @@
+services:
+  pypiserver:
+    image: pypiserver/pypiserver:latest
+    container_name: s04-registry
+    ports:
+      - "8000:8080"
+    volumes:
+      - ./dist:/data/packages
+    networks:
+      s04_network:
+        ipv4_address: 172.31.0.10
+
+  c2_server:
+    build:
+      context: ./red_team/infrastructure
+      dockerfile: Dockerfile
+    container_name: s04-attacker
+    ports:
+      - "8080:8080"
+      - "4444:4444"
+    volumes:
+      - ./loot:/app/loot
+    networks:
+      s04_network:
+        ipv4_address: 172.31.0.20
+
+networks:
+  s04_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.31.0.0/24
