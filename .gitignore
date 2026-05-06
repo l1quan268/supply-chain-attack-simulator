@@ -15,3 +15,8 @@ red_team/malicious_package/*.egg-info/
 # OS files
 .DS_Store
 Thumbs.db
+
+.claude
+
+*pdf
+*docx
