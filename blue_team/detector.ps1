@@ -298,25 +298,6 @@ function Invoke-TaskCheck {
     }
 }
 
-# ══════════════════════════════════════════════════════════════════════════════
-#  Watcher 5 — Process CommandLine  (S04-specific, near-zero false positive)
-# ══════════════════════════════════════════════════════════════════════════════
-
-function Invoke-ProcessCheck {
-    $procs = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue
-    foreach ($p in $procs) {
-        if (-not $p.CommandLine) { continue }
-        foreach ($pat in $S04Patterns) {
-            if ($p.CommandLine -match $pat) {
-                $rKey = "PROC|$($p.ProcessId)|$pat"
-                if (-not $script:Reported.Contains($rKey)) {
-                    Write-Alert "CRITICAL" "PROC | PID:$($p.ProcessId) [$($p.Name)] | S04 pattern '$pat' | $($p.CommandLine)"
-                    $null = $script:Reported.Add($rKey)
-                }
-            }
-        }
-    }
-}
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  Main
@@ -327,7 +308,7 @@ if (-not (Test-Path $logDir)) { New-Item -ItemType Directory $logDir -Force | Ou
 
 Write-Host "======================================================" -ForegroundColor Cyan
 Write-Host "  S04 BEHAVIORAL DETECTOR" -ForegroundColor Cyan
-Write-Host "  Network | Registry | Startup | Tasks | Process" -ForegroundColor Cyan
+Write-Host "  Network | Registry | Startup | Tasks" -ForegroundColor Cyan
 Write-Host "======================================================" -ForegroundColor Cyan
 Write-Host "  Log  : $LogFile" -ForegroundColor DarkGray
 Write-Host "  YARA : $(if (Test-Path $YaraExe) { 'enabled' } else { 'not found - disabled' })" `
@@ -348,8 +329,7 @@ while ($true) {
     Invoke-StartupCheck    # mỗi 2s
 
     if ($script:TickCount % 3 -eq 0) {
-        Invoke-TaskCheck       # mỗi 6s
-        Invoke-ProcessCheck    # mỗi 6s
+        Invoke-TaskCheck       # every 6s
     }
 
     Start-Sleep -Seconds 2
