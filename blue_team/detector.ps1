@@ -139,7 +139,7 @@ function Get-NetworkRisk {
     $isScripting = $ScriptingRuntimes -contains $Proc.Name
     if ($isScripting -and ($DevPorts -notcontains $Conn.RemotePort) -and ($score -lt 3)) {
         $score += 1
-        $reasons.Add("scripting runtime '$($Proc.Name)' trên port $($Conn.RemotePort)")
+        $reasons.Add("scripting runtime '$($Proc.Name)' on port $($Conn.RemotePort)")
     }
 
     # Cmdline check — luôn chạy, không cần gate (LOLBin cần kết hợp với IP signal)
@@ -198,14 +198,14 @@ function Invoke-NetworkCheck {
         $yaraInfo  = if ($yara.Count -gt 0) { " | YARA:[$($yara -join ', ')]" } else { "" }
         $finalLevel = if ($yara.Count -gt 0 -and $risk.Level -eq "WARN") { "CRITICAL" } else { $risk.Level }
 
-        Write-Alert $finalLevel ("NET | PID:$($c.OwningProcess) [$($proc.Name)] → " +
+        Write-Alert $finalLevel ("NET | PID:$($c.OwningProcess) [$($proc.Name)] -> " +
             "$($c.RemoteAddress):$($c.RemotePort) | score=$($risk.Score) | $($risk.Reasons)$yaraInfo")
         $null = $script:Reported.Add($connKey)
         $hitCount++
     }
 
     if ($hitCount -eq 0 -and -not $script:NetClear) {
-        Write-Alert "CLEAR" "NET | Không có kết nối đáng ngờ."
+        Write-Alert "CLEAR" "NET | No suspicious connections."
         $script:NetClear = $true
     } elseif ($hitCount -gt 0) { $script:NetClear = $false }
 }
@@ -234,7 +234,7 @@ function Invoke-RegistryCheck {
                 $rKey = "REG|$key|$name"
                 if (-not $script:Reported.Contains($rKey)) {
                     $shortKey = ($key -split "\\")[-3..-1] -join "\"
-                    Write-Alert "CRITICAL" "PERSIST | Run key mới [$shortKey] | '$name' = '$value'"
+                    Write-Alert "CRITICAL" "PERSIST | New Run key [$shortKey] | '$name' = '$value'"
                     $null = $script:Reported.Add($rKey)
                 }
                 $script:RegBaseline[$key][$name] = $value
@@ -264,7 +264,7 @@ function Invoke-StartupCheck {
         foreach ($f in ($current | Where-Object { $baseline -notcontains $_ })) {
             $rKey = "STARTUP|$folder|$f"
             if (-not $script:Reported.Contains($rKey)) {
-                Write-Alert "CRITICAL" "PERSIST | File mới trong Startup folder | '$f' | '$folder'"
+                Write-Alert "CRITICAL" "PERSIST | New file in Startup folder | '$f' | '$folder'"
                 $null = $script:Reported.Add($rKey)
             }
             $script:StartupBaseline[$folder] += $f
@@ -290,7 +290,7 @@ function Invoke-TaskCheck {
             $rKey = "TASK|$($t.TaskName)"
             if (-not $script:Reported.Contains($rKey)) {
                 $action = ($t.Actions | ForEach-Object { "$($_.Execute) $($_.Arguments)" }) -join "; "
-                Write-Alert "CRITICAL" "PERSIST | Scheduled task mới | '$($t.TaskName)' | Action: $action"
+                Write-Alert "CRITICAL" "PERSIST | New Scheduled Task | '$($t.TaskName)' | Action: $action"
                 $null = $script:Reported.Add($rKey)
             }
             $null = $script:TaskBaseline.Add($t.TaskName)
@@ -325,20 +325,20 @@ function Invoke-ProcessCheck {
 $logDir = Split-Path $LogFile
 if (-not (Test-Path $logDir)) { New-Item -ItemType Directory $logDir -Force | Out-Null }
 
-Write-Host "══════════════════════════════════════════════════════" -ForegroundColor Cyan
+Write-Host "======================================================" -ForegroundColor Cyan
 Write-Host "  S04 BEHAVIORAL DETECTOR" -ForegroundColor Cyan
 Write-Host "  Network | Registry | Startup | Tasks | Process" -ForegroundColor Cyan
-Write-Host "══════════════════════════════════════════════════════" -ForegroundColor Cyan
+Write-Host "======================================================" -ForegroundColor Cyan
 Write-Host "  Log  : $LogFile" -ForegroundColor DarkGray
-Write-Host "  YARA : $(if (Test-Path $YaraExe) { 'enabled' } else { 'not found — disabled' })" `
+Write-Host "  YARA : $(if (Test-Path $YaraExe) { 'enabled' } else { 'not found - disabled' })" `
     -ForegroundColor DarkGray
 Write-Host ""
 
-Write-Alert "INFO" "Thiết lập baseline..."
+Write-Alert "INFO" "Setting up baseline..."
 Initialize-RegBaseline
 Initialize-StartupBaseline
 Initialize-TaskBaseline
-Write-Alert "INFO" "Baseline xong. Bắt đầu giám sát."
+Write-Alert "INFO" "Baseline ready. Monitoring started."
 
 while ($true) {
     $script:TickCount++
