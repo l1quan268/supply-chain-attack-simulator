@@ -92,15 +92,15 @@ function Test-WhitelistedIP([string]$IP) {
     return $false
 }
 
-function Get-ProcCmdLine([int]$Pid) {
-    return (Get-CimInstance Win32_Process -Filter "ProcessId=$Pid" `
+function Get-ProcCmdLine([int]$TargetPid) {
+    return (Get-CimInstance Win32_Process -Filter "ProcessId=$TargetPid" `
         -ErrorAction SilentlyContinue).CommandLine
 }
 
-function Invoke-YaraScan([int]$Pid) {
+function Invoke-YaraScan([int]$TargetPid) {
     if (-not (Test-Path $YaraExe) -or -not (Test-Path $YaraRule)) { return @() }
     try {
-        $out = & $YaraExe $YaraRule $Pid 2>&1
+        $out = & $YaraExe $YaraRule $TargetPid 2>&1
         return @($out | Where-Object { $_ -match "^\w" -and $_ -notmatch "error|warning" } |
             ForEach-Object { ($_ -split "\s+")[0] })
     } catch { return @() }
