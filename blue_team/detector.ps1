@@ -1,4 +1,6 @@
 #Requires -RunAsAdministrator
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding           = [System.Text.Encoding]::UTF8
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  S04 BEHAVIORAL DETECTOR  —  Network | Registry | Startup | Tasks | Process
@@ -84,7 +86,7 @@ function Write-Alert {
     }
     $line = "[$ts][$Level] $Msg"
     Write-Host $line -ForegroundColor $color
-    $line | Out-File $LogFile -Append
+    $line | Out-File $LogFile -Append -Encoding UTF8
 }
 
 function Test-WhitelistedIP([string]$IP) {
