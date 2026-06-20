@@ -24,7 +24,7 @@ $WhitelistIPs = @(
 $HighRiskPorts = @(4444, 1337, 9001, 31337, 6666, 5555)
 
 # Port bình thường cho dev — giảm false positive khi đây là signal duy nhất
-$DevPorts = @(80, 443, 8000, 8888, 5000, 3000, 5432, 6379, 27017, 3306)
+$DevPorts = @(80, 443, 22, 23, 8000, 8888, 5000, 3000, 5432, 6379, 27017, 3306)
 
 # Scripting runtime — đáng ngờ hơn khi kết nối ra ngoài trên port lạ
 $ScriptingRuntimes = @("python", "pythonw", "py", "node", "wscript", "cscript", "mshta", "powershell", "pwsh")
@@ -113,7 +113,7 @@ function Invoke-YaraScan([int]$TargetPid) {
 # ══════════════════════════════════════════════════════════════════════════════
 
 function Get-NetworkRisk {
-    param($Conn, $Proc, [string]$CmdLine)
+    param($Conn, $Proc, [string]$CmdLine, $WmiProc)
 
     $score   = 0
     $reasons = [System.Collections.Generic.List[string]]::new()
@@ -142,7 +142,38 @@ function Get-NetworkRisk {
         $reasons.Add("scripting runtime '$($Proc.Name)' on port $($Conn.RemotePort)")
     }
 
-    # Cmdline check — luôn chạy, không cần gate (LOLBin cần kết hợp với IP signal)
+    # ── Behavioral signals — hoạt động bất kể port nào ───────────────────
+
+    # [+2] Process vừa tạo ra (< 60s) đã kết nối ra ngoài
+    # Payload thường kết nối về C2 ngay sau khi spawn
+    if ($Proc.StartTime -and ((Get-Date) - $Proc.StartTime).TotalSeconds -lt 60) {
+        if (-not (Test-WhitelistedIP $Conn.RemoteAddress)) {
+            $score += 2
+            $reasons.Add("new process (<60s) making outbound connection")
+        }
+    }
+
+    # [+1] Process chạy không có cửa sổ + kết nối ra ngoài (không áp dụng cho service)
+    # CREATE_NO_WINDOW là flag payload dùng để ẩn mình
+    if ($Proc.MainWindowHandle -eq [IntPtr]::Zero -and $isScripting) {
+        $score += 1
+        $reasons.Add("hidden/windowless scripting process")
+    }
+
+    # [+2] Process cha là pip, python, hoặc cmd trong ngữ cảnh install
+    # Payload được spawn từ setup.py → parent là python.exe đang chạy pip
+    if ($WmiProc) {
+        $parent = Get-CimInstance Win32_Process -Filter "ProcessId=$($WmiProc.ParentProcessId)" `
+            -ErrorAction SilentlyContinue
+        if ($parent -and $parent.Name -match "pip|python|cmd" -and
+            $parent.CommandLine -match "install|setup\.py") {
+            $score += 2
+            $reasons.Add("spawned by install-time process '$($parent.Name)'")
+        }
+    }
+
+    # ── Cmdline check ─────────────────────────────────────────────────────
+
     if ($CmdLine) {
         # [+4] S04 pattern — độ tin cậy rất cao
         foreach ($pat in $S04Patterns) {
@@ -156,7 +187,7 @@ function Get-NetworkRisk {
         foreach ($pat in $LolbinPatterns) {
             if ($CmdLine -match $pat) {
                 $score += 2
-                $reasons.Add("LOLBin cmdline match '$pat'")
+                $reasons.Add("LOLBin cmdline match")
                 break
             }
         }
@@ -185,18 +216,23 @@ function Invoke-NetworkCheck {
         $connKey = "$($c.OwningProcess)|$($c.RemoteAddress):$($c.RemotePort)"
         if ($script:Reported.Contains($connKey)) { continue }
 
-        $proc = Get-Process -Id $c.OwningProcess -ErrorAction SilentlyContinue
+        $proc    = Get-Process -Id $c.OwningProcess -ErrorAction SilentlyContinue
         if (-not $proc) { continue }
 
-        $cmd  = Get-ProcCmdLine $c.OwningProcess
-        $risk = Get-NetworkRisk -Conn $c -Proc $proc -CmdLine $cmd
+        $wmiProc = Get-CimInstance Win32_Process -Filter "ProcessId=$($c.OwningProcess)" `
+                       -ErrorAction SilentlyContinue
+        $cmd     = $wmiProc.CommandLine
+        $risk    = Get-NetworkRisk -Conn $c -Proc $proc -CmdLine $cmd -WmiProc $wmiProc
 
         if ($risk.Level -eq "OK") { continue }
 
-        # YARA scan process memory — upgrade WARN → CRITICAL nếu match
-        $yara      = Invoke-YaraScan $c.OwningProcess
-        $yaraInfo  = if ($yara.Count -gt 0) { " | YARA:[$($yara -join ', ')]" } else { "" }
-        $finalLevel = if ($yara.Count -gt 0 -and $risk.Level -eq "WARN") { "CRITICAL" } else { $risk.Level }
+        # YARA scan process memory — chỉ upgrade WARN→CRITICAL nếu match rule có severity cao
+        # (bỏ qua Packer_UPX / Packer_Aspack vì chúng là info-only, không đủ để confirm malicious)
+        $InfoOnlyRules = @("Packer_UPX", "Packer_Aspack")
+        $yara          = Invoke-YaraScan $c.OwningProcess
+        $yaraInfo      = if ($yara.Count -gt 0) { " | YARA:[$($yara -join ', ')]" } else { "" }
+        $significantYara = @($yara | Where-Object { $InfoOnlyRules -notcontains $_ })
+        $finalLevel    = if ($significantYara.Count -gt 0 -and $risk.Level -eq "WARN") { "CRITICAL" } else { $risk.Level }
 
         Write-Alert $finalLevel ("NET | PID:$($c.OwningProcess) [$($proc.Name)] -> " +
             "$($c.RemoteAddress):$($c.RemotePort) | score=$($risk.Score) | $($risk.Reasons)$yaraInfo")
